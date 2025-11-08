@@ -1,0 +1,68 @@
+1. Ерөнхий зураг
++------------+         +----------------+         +-------------------+
+|  ESP32 /   |  HTTP   |   NFC Web      |  DB     |   SQLite          |
+|  Gateway   +-------->+   (Express)    +-------->+ (leaderboard.db)  |
++------------+         +----------------+         +-------------------+
+      |                       ^
+      | NFC уншилт           | Web UI
+      v                       |
++-----------+            +----------------+
+| NFC Tag   |            | Browser (User) |
++-----------+            +----------------+
+
+
+2. Payment / Transaction flow (/api/scan)
+[Customer taps NFC tag]
+         |
+         v
+   ESP32 / Gateway
+         |
+         |  uid="AA:BB:CC:DD", amount=5000
+         |  POST /api/scan
+         v
++----------------------+       +-------------------+
+| Express /api/scan   |       | SQLite: users,    |
+| - scans-д log       |------>| transactions,     |
+| - UID -> user_id    |       | totals update     |
++----------------------+       +-------------------+
+         |
+         v
+  Leaderboard data шинэчлэгдсэн
+         |
+         v
+Browser @ "/" шинэчлэн харах
+
+
+3. NDEF writer flow (/api/ndef-url)
+
+[Admin NFC Writer ашиглаж карт дээр бичих]
+
+1) ESP32 (Writer) уншина UID
+2) GET /api/ndef-url?uid=AA:BB:CC:DD
+
+   Хэрэв user байвал:
+      -> { exists:true, url:"https://baganaa.online/u/123" }
+      -> NDEF URL = profile линк бичнэ.
+
+   Хэрэв user байхгүй:
+      -> { exists:false, registerUrl:"https://baganaa.online/register?uid=..." }
+      -> NDEF URL = register линк бичнэ.
+
+3) Хэрэглэгч утсаа NFC-д ойртуулахад:
+      -> Шууд web рүү орно (profile эсвэл register).
+
+
+
+4. Admin dashboard flow
++---------------------+     poll      +-------------------+
+| /admin (browser)    +<-------------+ /api/last-scan     |
+| - Last UID          |              +-------------------+
+| - If linked: show "Add Tx" form
+| - If not: show "Quick Register+Link"
++---------+-----------+
+          |
+          | submit
+          v
+  /admin/quick-add-tx  (Add amount)
+  /admin/quick-register-link (Create user + link UID)
+  /admin/delete-user   (Cascade delete)
